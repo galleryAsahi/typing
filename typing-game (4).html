@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>タイピングマスター</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=DotGothic16&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a14;
+    --panel: #0f0f1e;
+    --border: #2a2a5a;
+    --cyan: #00f5ff;
+    --pink: #ff2d78;
+    --yellow: #ffe600;
+    --green: #39ff14;
+    --purple: #b44eff;
+    --white: #e8e8ff;
+    --dim: #4a4a7a;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--white);
+    font-family: 'DotGothic16', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  /* scanline effect */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.07) 2px,
+      rgba(0,0,0,0.07) 4px
+    );
+    pointer-events: none;
+    z-index: 100;
+  }
+
+  /* grid bg */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,245,255,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,245,255,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 860px;
+    padding: 20px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* HEADER */
+  .header {
+    text-align: center;
+    margin-bottom: 24px;
+  }
+
+  .title {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 22px;
+    color: var(--cyan);
+    text-shadow: 0 0 10px var(--cyan), 0 0 30px rgba(0,245,255,0.4);
+    letter-spacing: 4px;
+    animation: flicker 4s infinite;
+  }
+
+  .subtitle {
+    font-size: 12px;
+    color: var(--dim);
+    margin-top: 6px;
+    letter-spacing: 2px;
+  }
+
+  @keyframes flicker {
+    0%, 95%, 100% { opacity: 1; }
+    96% { opacity: 0.6; }
+    97% { opacity: 1; }
+    98% { opacity: 0.4; }
+    99% { opacity: 1; }
+  }
+
+  /* STATS BAR */
+  .stats {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .stat-box {
+    flex: 1;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    padding: 10px 14px;
+    position: relative;
+    clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
+  }
+
+  .stat-box::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+  }
+
+  .stat-label {
+    font-size: 9px;
+    color: var(--dim);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .stat-value {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 16px;
+    margin-top: 4px;
+  }
+
+  .stat-value.cyan { color: var(--cyan); text-shadow: 0 0 8px var(--cyan); }
+  .stat-value.pink { color: var(--pink); text-shadow: 0 0 8px var(--pink); }
+  .stat-value.yellow { color: var(--yellow); text-shadow: 0 0 8px var(--yellow); }
+  .stat-value.green { color: var(--green); text-shadow: 0 0 8px var(--green); }
+
+  /* TIMER BAR */
+  .timer-track {
+    background: var(--border);
+    height: 6px;
+    border-radius: 0;
+    margin-bottom: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .timer-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--cyan), var(--pink));
+    transition: width 0.1s linear;
+    box-shadow: 0 0 8px var(--cyan);
+  }
+
+  .timer-fill.warning {
+    background: linear-gradient(90deg, var(--yellow), var(--pink));
+    animation: pulse-bar 0.5s infinite;
+  }
+
+  @keyframes pulse-bar {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+
+  /* MAIN GAME PANEL */
+  .game-panel {
+    border: 1px solid var(--border);
+    background: var(--panel);
+    padding: 28px 32px;
+    position: relative;
+    margin-bottom: 16px;
+  }
+
+  .game-panel::before, .game-panel::after {
+    content: '';
+    position: absolute;
+    width: 12px; height: 12px;
+    border-color: var(--cyan);
+    border-style: solid;
+  }
+  .game-panel::before { top: -1px; left: -1px; border-width: 2px 0 0 2px; }
+  .game-panel::after { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; }
+
+  /* WORD DISPLAY */
+  .word-display {
+    font-size: 36px;
+    text-align: center;
+    letter-spacing: 8px;
+    margin-bottom: 10px;
+    min-height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 2px;
+  }
+
+  .char {
+    display: inline-block;
+    transition: all 0.1s;
+  }
+  .char.pending { color: var(--white); }
+  .char.correct { color: var(--green); text-shadow: 0 0 10px var(--green); }
+  .char.wrong { color: var(--pink); text-shadow: 0 0 10px var(--pink); background: rgba(255,45,120,0.15); }
+  .char.current {
+    color: var(--yellow);
+    text-shadow: 0 0 12px var(--yellow);
+    border-bottom: 2px solid var(--yellow);
+    animation: blink-cur 0.7s infinite;
+  }
+
+  @keyframes blink-cur {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* ROMAJI HINT */
+  .romaji-hint {
+    text-align: center;
+    font-size: 13px;
+    color: var(--dim);
+    letter-spacing: 4px;
+    margin-bottom: 20px;
+    min-height: 20px;
+  }
+
+  /* ROMAJI TYPED DISPLAY (sushida style) */
+  .romaji-typed {
+    text-align: center;
+    font-size: 20px;
+    letter-spacing: 5px;
+    min-height: 34px;
+    font-family: 'DotGothic16', monospace;
+    margin-bottom: 4px;
+  }
+  .t-ok  { color: var(--green); text-shadow: 0 0 8px var(--green); }
+  .t-cur { color: var(--yellow); border-bottom: 2px solid var(--yellow); }
+  .t-rest{ color: var(--dim); }
+
+  .game-panel-shake { animation: shake 0.25s; }
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-6px); }
+    75% { transform: translateX(6px); }
+  }
+  .focus-trap { position:fixed; opacity:0; pointer-events:none; width:1px; height:1px; }
+
+  /* DIFFICULTY SELECTOR */
+  .difficulty-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+    justify-content: center;
+  }
+
+  .diff-btn {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px;
+    padding: 8px 14px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--dim);
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: all 0.15s;
+    clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+  }
+
+  .diff-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+  .diff-btn.active { border-color: var(--cyan); color: var(--cyan); background: rgba(0,245,255,0.1); box-shadow: 0 0 10px rgba(0,245,255,0.3); }
+
+  /* START SCREEN */
+  #start-screen {
+    text-align: center;
+    padding: 20px 0;
+  }
+
+  .big-btn {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 13px;
+    padding: 16px 40px;
+    border: 2px solid var(--cyan);
+    background: transparent;
+    color: var(--cyan);
+    cursor: pointer;
+    letter-spacing: 2px;
+    transition: all 0.15s;
+    clip-path: polygon(10px 0%, 100% 0%, calc(100% - 10px) 100%, 0% 100%);
+    box-shadow: 0 0 15px rgba(0,245,255,0.3);
+    margin: 10px;
+  }
+
+  .big-btn:hover {
+    background: rgba(0,245,255,0.15);
+    box-shadow: 0 0 30px rgba(0,245,255,0.5);
+    transform: scale(1.04);
+  }
+
+  .big-btn.pink {
+    border-color: var(--pink);
+    color: var(--pink);
+    box-shadow: 0 0 15px rgba(255,45,120,0.3);
+  }
+
+  .big-btn.pink:hover {
+    background: rgba(255,45,120,0.15);
+    box-shadow: 0 0 30px rgba(255,45,120,0.5);
+  }
+
+  /* COMBO */
+  .combo-display {
+    text-align: center;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 11px;
+    color: var(--purple);
+    text-shadow: 0 0 10px var(--purple);
+    margin-bottom: 8px;
+    min-height: 20px;
+    letter-spacing: 2px;
+    transition: transform 0.1s;
+  }
+
+  .combo-display.pop {
+    animation: combo-pop 0.3s ease-out;
+  }
+
+  @keyframes combo-pop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.3); }
+    100% { transform: scale(1); }
+  }
+
+  /* RESULT SCREEN */
+  #result-screen {
+    display: none;
+    text-align: center;
+  }
+
+  .result-title {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 20px;
+    color: var(--yellow);
+    text-shadow: 0 0 15px var(--yellow);
+    margin-bottom: 24px;
+    letter-spacing: 3px;
+  }
+
+  .result-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    max-width: 400px;
+    margin: 0 auto 24px;
+  }
+
+  .result-item {
+    border: 1px solid var(--border);
+    padding: 12px;
+    background: rgba(0,0,0,0.3);
+  }
+
+  .result-item .label { font-size: 10px; color: var(--dim); }
+  .result-item .value {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 18px;
+    margin-top: 6px;
+  }
+
+  /* particles */
+  .particle {
+    position: fixed;
+    pointer-events: none;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px;
+    animation: float-up 0.8s ease-out forwards;
+    z-index: 200;
+  }
+
+  @keyframes float-up {
+    0% { transform: translateY(0) scale(1); opacity: 1; }
+    100% { transform: translateY(-60px) scale(0.5); opacity: 0; }
+  }
+
+  /* mode info */
+  .mode-info {
+    font-size: 10px;
+    color: var(--dim);
+    text-align: center;
+    margin-bottom: 12px;
+    letter-spacing: 1px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="title">TYPING MASTER</div>
+    <div class="subtitle">タイピングマスター // ARCADE EDITION</div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats">
+    <div class="stat-box">
+      <div class="stat-label">SCORE</div>
+      <div class="stat-value cyan" id="score">0</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">WPM</div>
+      <div class="stat-value pink" id="wpm">0</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">正確率</div>
+      <div class="stat-value yellow" id="accuracy">--</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">残り</div>
+      <div class="stat-value green" id="timer">60</div>
+    </div>
+  </div>
+
+  <!-- TIMER BAR -->
+  <div class="timer-track">
+    <div class="timer-fill" id="timer-fill"></div>
+  </div>
+
+  <!-- GAME PANEL -->
+  <div class="game-panel">
+    <!-- START SCREEN -->
+    <div id="start-screen">
+      <div style="color: var(--dim); font-size: 13px; margin-bottom: 20px; letter-spacing: 2px;">難易度を選んでスタート！</div>
+      <div class="difficulty-row">
+        <button class="diff-btn active" data-diff="easy" onclick="setDiff('easy',this)">かんたん</button>
+        <button class="diff-btn" data-diff="normal" onclick="setDiff('normal',this)">ふつう</button>
+        <button class="diff-btn" data-diff="hard" onclick="setDiff('hard',this)">むずかしい</button>
+      </div>
+      <div class="mode-info" id="diff-desc">ひらがな・短い単語 / 60秒</div>
+      <button class="big-btn" onclick="startGame()">▶ スタート</button>
+    </div>
+
+    <!-- GAME SCREEN -->
+    <div id="game-screen" style="display:none">
+      <div class="combo-display" id="combo"></div>
+      <div class="word-display" id="word-display"></div>
+      <div class="romaji-typed" id="romaji-typed"></div>
+      <input class="focus-trap" id="focus-trap" type="text" readonly>
+    </div>
+
+    <!-- RESULT SCREEN -->
+    <div id="result-screen">
+      <div class="result-title" id="result-title">GAME OVER</div>
+      <div class="result-grid">
+        <div class="result-item">
+          <div class="label">FINAL SCORE</div>
+          <div class="value cyan" id="r-score">0</div>
+        </div>
+        <div class="result-item">
+          <div class="label">WPM</div>
+          <div class="value pink" id="r-wpm">0</div>
+        </div>
+        <div class="result-item">
+          <div class="label">正確率</div>
+          <div class="value yellow" id="r-accuracy">0%</div>
+        </div>
+        <div class="result-item">
+          <div class="label">MAX COMBO</div>
+          <div class="value" style="color:var(--purple)" id="r-combo">0</div>
+        </div>
+      </div>
+      <button class="big-btn" onclick="returnToStart()">▶ もう一度</button>
+      <button class="big-btn pink" onclick="returnToStart()">◀ タイトル</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ================= WORD DATA =================
+const words = {
+  easy: [
+    'ねこ','いぬ','さかな','そら','うみ','はな','やま','かわ','き','みず',
+    'ひ','つき','ほし','くも','かぜ','あめ','ゆき','はる','なつ','あき',
+    'ふゆ','あか','あお','しろ','くろ','てつ','はし','にわ','むし','とり',
+  ],
+  normal: [
+    'たいぴんぐ','にほんご','パソコン','キーボード','プログラム',
+    'インターネット','でんしゃ','じてんしゃ','たべもの','のみもの',
+    'としょかん','がっこう','せんせい','ともだち','かいもの',
+    'りょこう','しごと','おんがく','えいご','すうがく',
+    'でんわ','しんぶん','ざっし','えいがかん','びょういん',
+  ],
+  hard: [
+    'プログラミング','アルゴリズム','テクノロジー','コミュニケーション',
+    'インフラストラクチャー','じんこうちのう','きかいがくしゅう',
+    'データベース','ネットワーク','セキュリティ','アーキテクチャ',
+    'オープンソース','クラウドコンピューティング','スマートフォン',
+    'アプリケーション','ダウンロード','アップロード','インターフェース',
+    'シミュレーション','ビジュアライゼーション',
+  ],
+};
+
+const diffDesc = {
+  easy: 'ひらがな・短い単語 / 60秒',
+  normal: 'カタカナ混じり・中程度 / 60秒',
+  hard: '長い単語・チャレンジ / 60秒',
+};
+
+// ================= GAME STATE =================
+let state = {
+  diff: 'easy',
+  running: false,
+  timeLeft: 60,
+  totalTime: 60,
+  score: 0,
+  combo: 0,
+  maxCombo: 0,
+  wordsTyped: 0,
+  totalChars: 0,
+  errors: 0,
+  tokens: null,
+  tokenIdx: 0,
+  subIdx: 0,
+  chosenPattern: null,
+  wordStart: null,
+  timerInterval: null,
+  usedWords: [],
+};
+
+// ================= UI REFS =================
+const $score = document.getElementById('score');
+const $wpm = document.getElementById('wpm');
+const $accuracy = document.getElementById('accuracy');
+const $timer = document.getElementById('timer');
+const $timerFill = document.getElementById('timer-fill');
+const $wordDisplay = document.getElementById('word-display');
+const $combo = document.getElementById('combo');
+
+// ================= SETUP =================
+function setDiff(d, btn) {
+  state.diff = d;
+  document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('diff-desc').textContent = diffDesc[d];
+}
+
+function startGame() {
+  document.getElementById('start-screen').style.display = 'none';
+  document.getElementById('result-screen').style.display = 'none';
+  document.getElementById('game-screen').style.display = 'block';
+
+  // reset
+  Object.assign(state, {
+    running: true, timeLeft: 60, totalTime: 60,
+    score: 0, combo: 0, maxCombo: 0,
+    wordsTyped: 0, totalChars: 0, errors: 0,
+    usedWords: [],
+  });
+
+  updateStats();
+  loadNewWord();
+  $focusTrap.focus();
+
+  state.timerInterval = setInterval(tick, 100);
+}
+
+function tick() {
+  state.timeLeft -= 0.1;
+  if (state.timeLeft <= 0) {
+    state.timeLeft = 0;
+    endGame();
+  }
+  updateTimer();
+}
+
+function endGame() {
+  clearInterval(state.timerInterval);
+  state.running = false;
+
+  document.getElementById('game-screen').style.display = 'none';
+  document.getElementById('result-screen').style.display = 'block';
+
+  const acc = state.totalChars > 0
+    ? Math.round(((state.totalChars - state.errors) / state.totalChars) * 100)
+    : 0;
+  const elapsed = state.totalTime - state.timeLeft;
+  const wpm = elapsed > 0 ? Math.round((state.wordsTyped / elapsed) * 60) : 0;
+
+  document.getElementById('r-score').textContent = state.score;
+  document.getElementById('r-wpm').textContent = wpm;
+  document.getElementById('r-accuracy').textContent = acc + '%';
+  document.getElementById('r-combo').textContent = state.maxCombo;
+
+  // title based on score
+  let title = 'GAME OVER';
+  if (state.score >= 3000) title = '★ PERFECT ★';
+  else if (state.score >= 1500) title = '✦ GREAT ✦';
+  else if (state.score >= 500) title = 'GOOD JOB!';
+  document.getElementById('result-title').textContent = title;
+}
+
+function returnToStart() {
+  document.getElementById('result-screen').style.display = 'none';
+  document.getElementById('game-screen').style.display = 'none';
+  document.getElementById('start-screen').style.display = 'block';
+  $combo.textContent = '';
+  $score.textContent = '0';
+  $wpm.textContent = '0';
+  $accuracy.textContent = '--';
+  $timer.textContent = '60';
+  $timerFill.style.width = '100%';
+  $timerFill.classList.remove('warning');
+}
+
+// ================= WORD LOGIC =================
+function getNextWord() {
+  const pool = words[state.diff];
+  let available = pool.filter(w => !state.usedWords.includes(w));
+  if (available.length === 0) { state.usedWords = []; available = pool; }
+  const kana = available[Math.floor(Math.random() * available.length)];
+  state.usedWords.push(kana);
+  return kana;
+}
+
+function loadNewWord() {
+  const kana = getNextWord();
+  // かな→トークン列に変換
+  state.tokens = kanaToTokens(kana);
+  state.tokenIdx = 0;   // 現在のトークン位置
+  state.subIdx = 0;     // トークン内のローマ字位置
+  state.chosenPattern = null; // まだ未確定
+  state.wordStart = Date.now();
+  renderKana();
+  renderRomaji();
+  $focusTrap.focus();
+}
+
+function renderKana() {
+  $wordDisplay.innerHTML = '';
+  state.tokens.forEach((tok, ti) => {
+    const span = document.createElement('span');
+    span.className = 'char ' + (ti < state.tokenIdx ? 'correct' : ti === state.tokenIdx ? 'current' : 'pending');
+    span.textContent = tok.kana;
+    $wordDisplay.appendChild(span);
+  });
+}
+
+// ================= KANA→TOKEN ENGINE =================
+// 各トークンは { kana: 'し', patterns: ['shi','si','ci'] } など
+// かな文字列をトークン配列に変換する
+
+const KANA_MAP = [
+  // ── 拗音（3文字）優先 ──
+  ['しゃ',['sha','sya']],['しゅ',['shu','syu']],['しょ',['sho','syo']],
+  ['ちゃ',['cha','tya','cya']],['ちゅ',['chu','tyu','cyu']],['ちょ',['cho','tyo','cyo']],
+  ['にゃ',['nya']],['にゅ',['nyu']],['にょ',['nyo']],
+  ['ひゃ',['hya']],['ひゅ',['hyu']],['ひょ',['hyo']],
+  ['みゃ',['mya']],['みゅ',['myu']],['みょ',['myo']],
+  ['りゃ',['rya']],['りゅ',['ryu']],['りょ',['ryo']],
+  ['ぎゃ',['gya']],['ぎゅ',['gyu']],['ぎょ',['gyo']],
+  ['じゃ',['ja','jya','zya']],['じゅ',['ju','jyu','zyu']],['じょ',['jo','jyo','zyo']],
+  ['びゃ',['bya']],['びゅ',['byu']],['びょ',['byo']],
+  ['ぴゃ',['pya']],['ぴゅ',['pyu']],['ぴょ',['pyo']],
+  ['きゃ',['kya']],['きゅ',['kyu']],['きょ',['kyo']],
+  ['てぃ',['thi']],['でぃ',['dhi']],
+  ['ふぁ',['fa']],['ふぃ',['fi']],['ふぇ',['fe']],['ふぉ',['fo']],
+  ['うぁ',['wha']],['うぃ',['wi']],['うぇ',['we']],['うぉ',['wo']],
+  // ── カタカナ拗音 ──
+  ['シャ',['sha','sya']],['シュ',['shu','syu']],['ショ',['sho','syo']],
+  ['チャ',['cha','tya','cya']],['チュ',['chu','tyu','cyu']],['チョ',['cho','tyo','cyo']],
+  ['ニャ',['nya']],['ニュ',['nyu']],['ニョ',['nyo']],
+  ['ヒャ',['hya']],['ヒュ',['hyu']],['ヒョ',['hyo']],
+  ['ミャ',['mya']],['ミュ',['myu']],['ミョ',['myo']],
+  ['リャ',['rya']],['リュ',['ryu']],['リョ',['ryo']],
+  ['ギャ',['gya']],['ギュ',['gyu']],['ギョ',['gyo']],
+  ['ジャ',['ja','jya','zya']],['ジュ',['ju','jyu','zyu']],['ジョ',['jo','jyo','zyo']],
+  ['ビャ',['bya']],['ビュ',['byu']],['ビョ',['byo']],
+  ['ピャ',['pya']],['ピュ',['pyu']],['ピョ',['pyo']],
+  ['キャ',['kya']],['キュ',['kyu']],['キョ',['kyo']],
+  ['ティ',['thi']],['ディ',['dhi']],['デュ',['dyu']],
+  ['ファ',['fa']],['フィ',['fi']],['フェ',['fe']],['フォ',['fo']],
+  ['ウィ',['wi']],['ウェ',['we']],['ウォ',['wo']],
+  ['ヴァ',['va']],['ヴィ',['vi']],['ヴ',['vu']],['ヴェ',['ve']],['ヴォ',['vo']],
+  // ── 単体かな ──
+  ['あ',['a']],['い',['i']],['う',['u']],['え',['e']],['お',['o']],
+  ['か',['ka']],['き',['ki']],['く',['ku']],['け',['ke']],['こ',['ko']],
+  ['さ',['sa']],['し',['shi','si','ci']],['す',['su']],['せ',['se']],['そ',['so']],
+  ['た',['ta']],['ち',['chi','ti','ci']],['つ',['tsu','tu']],['て',['te']],['と',['to']],
+  ['な',['na']],['に',['ni']],['ぬ',['nu']],['ね',['ne']],['の',['no']],
+  ['は',['ha']],['ひ',['hi']],['ふ',['fu','hu']],['へ',['he']],['ほ',['ho']],
+  ['ま',['ma']],['み',['mi']],['む',['mu']],['め',['me']],['も',['mo']],
+  ['や',['ya']],['ゆ',['yu']],['よ',['yo']],
+  ['ら',['ra']],['り',['ri']],['る',['ru']],['れ',['re']],['ろ',['ro']],
+  ['わ',['wa']],['ゐ',['wi']],['ゑ',['we']],['を',['wo']],
+  ['ん',['n','nn','xn']],  // n単独（子音前・語末）、nn、xn
+  ['が',['ga']],['ぎ',['gi']],['ぐ',['gu']],['げ',['ge']],['ご',['go']],
+  ['ざ',['za']],['じ',['ji','zi']],['ず',['zu']],['ぜ',['ze']],['ぞ',['zo']],
+  ['だ',['da']],['ぢ',['di']],['づ',['du']],['で',['de']],['ど',['do']],
+  ['ば',['ba']],['び',['bi']],['ぶ',['bu']],['べ',['be']],['ぼ',['bo']],
+  ['ぱ',['pa']],['ぴ',['pi']],['ぷ',['pu']],['ぺ',['pe']],['ぽ',['po']],
+  ['ぁ',['xa','la']],['ぃ',['xi','li']],['ぅ',['xu','lu']],['ぇ',['xe','le']],['ぉ',['xo','lo']],
+  ['っ',['xtu','ltu','ltsu']],  // 後処理で次の子音2つ打ちも可
+  ['ゃ',['xya','lya']],['ゅ',['xyu','lyu']],['ょ',['xyo','lyo']],
+  // ── カタカナ単体 ──
+  ['ア',['a']],['イ',['i']],['ウ',['u']],['エ',['e']],['オ',['o']],
+  ['カ',['ka']],['キ',['ki']],['ク',['ku']],['ケ',['ke']],['コ',['ko']],
+  ['サ',['sa']],['シ',['shi','si']],['ス',['su']],['セ',['se']],['ソ',['so']],
+  ['タ',['ta']],['チ',['chi','ti']],['ツ',['tsu','tu']],['テ',['te']],['ト',['to']],
+  ['ナ',['na']],['ニ',['ni']],['ヌ',['nu']],['ネ',['ne']],['ノ',['no']],
+  ['ハ',['ha']],['ヒ',['hi']],['フ',['fu','hu']],['ヘ',['he']],['ホ',['ho']],
+  ['マ',['ma']],['ミ',['mi']],['ム',['mu']],['メ',['me']],['モ',['mo']],
+  ['ヤ',['ya']],['ユ',['yu']],['ヨ',['yo']],
+  ['ラ',['ra']],['リ',['ri']],['ル',['ru']],['レ',['re']],['ロ',['ro']],
+  ['ワ',['wa']],['ヲ',['wo']],
+  ['ン',['n','nn','xn']],
+  ['ガ',['ga']],['ギ',['gi']],['グ',['gu']],['ゲ',['ge']],['ゴ',['go']],
+  ['ザ',['za']],['ジ',['ji','zi']],['ズ',['zu']],['ゼ',['ze']],['ゾ',['zo']],
+  ['ダ',['da']],['ヂ',['di']],['ヅ',['du']],['デ',['de']],['ド',['do']],
+  ['バ',['ba']],['ビ',['bi']],['ブ',['bu']],['ベ',['be']],['ボ',['bo']],
+  ['パ',['pa']],['ピ',['pi']],['プ',['pu']],['ペ',['pe']],['ポ',['po']],
+  ['ァ',['xa','la']],['ィ',['xi','li']],['ゥ',['xu','lu']],['ェ',['xe','le']],['ォ',['xo','lo']],
+  ['ッ',['xtu','ltu','ltsu']],
+  ['ャ',['xya','lya']],['ュ',['xyu','lyu']],['ョ',['xyo','lyo']],
+  ['ー',['－','-']],  // 長音符
+];
+
+// Map for O(1) lookup: longest match first handled in loop
+const KANA_LOOKUP = new Map(KANA_MAP.map(([k,v]) => [k, v]));
+
+function kanaToTokens(kanaStr) {
+  const tokens = [];
+  let i = 0;
+  while (i < kanaStr.length) {
+    // Try 2-char match first
+    if (i + 1 < kanaStr.length) {
+      const two = kanaStr[i] + kanaStr[i+1];
+      if (KANA_LOOKUP.has(two)) {
+        tokens.push({ kana: two, patterns: KANA_LOOKUP.get(two) });
+        i += 2;
+        continue;
+      }
+    }
+    const one = kanaStr[i];
+    if (KANA_LOOKUP.has(one)) {
+      let pats = [...KANA_LOOKUP.get(one)];
+      // っ/ッ: 次の文字の子音を2つ打ちでも可
+      if ((one === 'っ' || one === 'ッ') && i + 1 < kanaStr.length) {
+        const nextTok = kanaStr[i+1];
+        const nextPats = KANA_LOOKUP.get(kanaStr[i+1] + (kanaStr[i+2]||'')) || KANA_LOOKUP.get(nextTok);
+        if (nextPats) {
+          for (const np of nextPats) {
+            if (np[0].match(/[bcdfghjklmnpqrstvwxyz]/)) pats.push(np[0]);
+          }
+        }
+      }
+      // ん/ン の n単独許可は handleKey 側で処理するのでここでは何もしない
+      tokens.push({ kana: one, patterns: pats });
+      i++;
+    } else {
+      // ASCII文字など（そのまま）
+      tokens.push({ kana: one, patterns: [one] });
+      i++;
+    }
+  }
+  return tokens;
+}
+
+// ================= INPUT (sushida style) =================
+const $romajiTyped = document.getElementById('romaji-typed');
+const $focusTrap = document.getElementById('focus-trap');
+
+document.addEventListener('keydown', (e) => {
+  if (!state.running) return;
+  if (e.key === 'Escape') { returnToStart(); return; }
+  if (e.key.length !== 1 || e.ctrlKey || e.metaKey || e.altKey) return;
+
+  const key = e.key.toLowerCase();
+  handleKey(key);
+});
+
+function wordComplete() {
+  const elapsed = (Date.now() - state.wordStart) / 1000;
+  const pts = Math.max(10, Math.round(100 * state.tokens.length / Math.max(elapsed, 0.5)));
+  const comboBonus = state.combo >= 5 ? Math.floor(state.combo / 5) * 20 : 0;
+  state.score += pts + comboBonus;
+  state.wordsTyped++;
+  state.combo++;
+  if (state.combo > state.maxCombo) state.maxCombo = state.combo;
+  showCombo();
+  spawnParticle('+' + (pts + comboBonus), '#39ff14');
+  updateStats();
+  loadNewWord();
+}
+
+// 母音・n・y → ん を単独 n で確定できない文字
+const N_AMBIGUOUS = new Set(['a','i','u','e','o','n','y']);
+
+function handleKey(key) {
+  const tokens = state.tokens;
+  if (!tokens || state.tokenIdx >= tokens.length) return;
+
+  const tok = tokens[state.tokenIdx];
+
+  // ── ん/ン の特別処理: n を1つ打った後、次トークンの子音キーで「ん」を確定 ──
+  const isN = (tok.kana === 'ん' || tok.kana === 'ン');
+  if (isN && state.subIdx === 1) {
+    // すでに n を1打した状態。次トークンの先頭子音が来たら「ん」を確定して流す
+    if (!N_AMBIGUOUS.has(key)) {
+      // ん を確定
+      state.tokenIdx++;
+      state.subIdx = 0;
+      state.chosenPattern = null;
+      if (state.tokenIdx >= tokens.length) {
+        // 単語完了（ん が末尾の場合は通常ルートに任せるがここでも処理）
+        wordComplete();
+        return;
+      }
+      // そのまま次トークンにキーを流す
+      handleKey(key);
+      return;
+    }
+  }
+
+  // 現在のトークンで有効なパターンを絞り込む
+  // state.chosenPattern: null=未確定, string=確定中のパターン
+  let active = state.chosenPattern ? [state.chosenPattern] : tok.patterns;
+  // subIdx文字目がkeyに一致するパターンを探す
+  const matching = active.filter(p => p[state.subIdx] === key);
+
+  if (matching.length > 0) {
+    // 正解
+    state.totalChars++;
+    state.subIdx++;
+    // 一意に絞り込む
+    state.chosenPattern = matching.length === 1 ? matching[0] : null;
+    // もし全パターンで subIdx 以降が同じなら chosenPattern を更新
+    if (!state.chosenPattern) {
+      // 残りが全部一致しているか確認
+      const rest = matching[0].slice(state.subIdx);
+      if (matching.every(p => p.slice(state.subIdx) === rest)) {
+        state.chosenPattern = matching[0];
+      }
+    }
+
+    // トークン完了チェック: いずれかのパターンを打ち終えた
+    const done = matching.some(p => p.length === state.subIdx);
+    if (done) {
+      state.tokenIdx++;
+      state.subIdx = 0;
+      state.chosenPattern = null;
+
+      if (state.tokenIdx === tokens.length) {
+        wordComplete();
+        return;
+      }
+    }
+    renderKana();
+    renderRomaji();
+  } else {
+    // ミス
+    state.errors++;
+    state.totalChars++;
+    state.combo = 0;
+    $combo.textContent = '';
+    const panel = document.querySelector('.game-panel');
+    panel.classList.add('game-panel-shake');
+    setTimeout(() => panel.classList.remove('game-panel-shake'), 250);
+    spawnParticle('✗', '#ff2d78');
+    updateStats();
+    renderRomaji();
+  }
+}
+
+document.addEventListener('click', () => { if (state.running) $focusTrap.focus(); });
+
+// ================= ROMAJI DISPLAY =================
+function renderRomaji() {
+  const tokens = state.tokens;
+  if (!tokens) return;
+  let html = '';
+
+  for (let ti = 0; ti < tokens.length; ti++) {
+    const tok = tokens[ti];
+    // 表示するパターンを決定: 完了済みはその打ったパターン、現在はchosenまたはpatterns[0]
+    let disp;
+    if (ti < state.tokenIdx) {
+      disp = tok._typed || tok.patterns[0];
+      html += `<span class="t-ok">${disp}</span>`;
+    } else if (ti === state.tokenIdx) {
+      disp = state.chosenPattern || tok.patterns[0];
+      // 打ち終えた部分
+      for (let ci = 0; ci < disp.length; ci++) {
+        if (ci < state.subIdx) {
+          html += `<span class="t-ok">${disp[ci]}</span>`;
+        } else if (ci === state.subIdx) {
+          html += `<span class="t-cur">${disp[ci]}</span>`;
+        } else {
+          html += `<span class="t-rest">${disp[ci]}</span>`;
+        }
+      }
+    } else {
+      disp = tok.patterns[0];
+      html += `<span class="t-rest">${disp}</span>`;
+    }
+  }
+  $romajiTyped.innerHTML = html;
+}
+
+// ================= COMBO DISPLAY =================
+function showCombo() {
+  $combo.classList.remove('pop');
+  void $combo.offsetWidth;
+  if (state.combo >= 3) {
+    $combo.textContent = state.combo + ' COMBO!!';
+    $combo.classList.add('pop');
+  } else {
+    $combo.textContent = '';
+  }
+}
+
+// ================= PARTICLE =================
+function spawnParticle(text, color) {
+  const el = document.createElement('div');
+  el.className = 'particle';
+  el.textContent = text;
+  el.style.color = color;
+  el.style.textShadow = `0 0 8px ${color}`;
+  const rect = $wordDisplay.getBoundingClientRect();
+  el.style.left = (rect.left + rect.width / 2 + (Math.random() - 0.5) * 80) + 'px';
+  el.style.top = (rect.top - 10) + 'px';
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 800);
+}
+
+// ================= STATS UPDATE =================
+function updateStats() {
+  $score.textContent = state.score;
+  const elapsed = state.totalTime - state.timeLeft;
+  const wpm = elapsed > 5 ? Math.round((state.wordsTyped / elapsed) * 60) : 0;
+  $wpm.textContent = wpm;
+  const acc = state.totalChars > 0
+    ? Math.round(((state.totalChars - state.errors) / state.totalChars) * 100)
+    : '--';
+  $accuracy.textContent = acc === '--' ? '--' : acc + '%';
+}
+
+function updateTimer() {
+  const t = Math.ceil(state.timeLeft);
+  $timer.textContent = t;
+  const pct = (state.timeLeft / state.totalTime) * 100;
+  $timerFill.style.width = pct + '%';
+  if (state.timeLeft <= 10) {
+    $timerFill.classList.add('warning');
+  }
+}
+
+// initial timer fill
+$timerFill.style.width = '100%';
+</script>
+</body>
+</html>
